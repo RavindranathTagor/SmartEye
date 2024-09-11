@@ -1,6 +1,16 @@
-# visualassit
+# visualassit 
+AI powered app for impaired individuals and Blind individuals.
 
-A new Flutter project.
+# Hackothasva-2k24
+
+# Team Name: Meta Warriors HK20
+ Ravindranath Tagore
+ Pushpa Shetty
+ Jayanth G
+
+
+
+
 
 ## Getting Started
 
