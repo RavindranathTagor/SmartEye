@@ -4,9 +4,9 @@ AI powered app for impaired individuals and Blind individuals.
 # Hackothasva-2k24
 
 # Team Name: Meta Warriors HK20
- Ravindranath Tagore
- Pushpa Shetty
- Jayanth G
+ Ravindranath Tagore,
+ Pushpa Shetty,
+ Jayanth G.
 
 
 
