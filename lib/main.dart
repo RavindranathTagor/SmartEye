@@ -14,7 +14,7 @@ Future<void> main() async {
   runApp(
     MaterialApp(
       theme: ThemeData.dark(),
-      home: TakePictureScreen(),
+      home: const TakePictureScreen(),
     ),
   );
 }
@@ -105,7 +105,7 @@ class TakePictureScreenState extends State<TakePictureScreen> {
   Future<List<int>> captureImageFromESP32() async {
     try {
       final response =
-          await http.get(Uri.parse('http://192.168.122.117/capture'));
+          await http.get(Uri.parse('http://192.168.45.117/capture'));
 
       if (response.statusCode == 200) {
         return response.bodyBytes;
@@ -173,9 +173,10 @@ class TakePictureScreenState extends State<TakePictureScreen> {
           {
             "data": {
               "text": {
-                "raw": '''<s>
-                  <<SYS>> You are a virtual assistant. Your response must be below 50 words <</SYS>>
-                  [INST] $content [/INST]'''
+                "raw": '''
+              You are a virtual assistant. Provide clear and concise responses, keeping the response under 50 words.
+              $content
+              '''
               }
             }
           }
@@ -188,7 +189,7 @@ class TakePictureScreenState extends State<TakePictureScreen> {
             "data": {
               "text": {
                 "raw":
-                    "you are assistant of blind person and you guiding a blind person whats there in surrounding, keep it short and detailed, don't use image word"
+                    "You are an assistant for a visually impaired person. Describe their surroundings clearly and concisely, focusing on key objects, people, and important details. Use straightforward language and avoid the word 'image'. Ensure your description is no longer than 150 words and provides useful information for navigation and awareness."
               },
               "image": {"base64": content}
             }
@@ -362,7 +363,7 @@ class TakePictureScreenState extends State<TakePictureScreen> {
       ),
       body: Column(
         children: [
-          Expanded(
+          const Expanded(
             child: Center(
               child: Text(
                 'Camera feed will be simulated.',
@@ -372,8 +373,8 @@ class TakePictureScreenState extends State<TakePictureScreen> {
             ),
           ),
           if (isBusy)
-            Padding(
-              padding: const EdgeInsets.all(12.0),
+            const Padding(
+              padding: EdgeInsets.all(12.0),
               child: CircularProgressIndicator(),
             ),
           Padding(
@@ -382,7 +383,7 @@ class TakePictureScreenState extends State<TakePictureScreen> {
             child: Text(
               display,
               style:
-                  TextStyle(fontSize: 22), // Larger text for better readability
+                  const TextStyle(fontSize: 16), // Larger text for better readability
             ),
           ),
           Padding(
@@ -395,8 +396,8 @@ class TakePictureScreenState extends State<TakePictureScreen> {
               },
               style: ElevatedButton.styleFrom(
                 minimumSize:
-                    Size(double.infinity, 60), // Full-width, larger button
-                textStyle: TextStyle(fontSize: 20), // Larger text on the button
+                    const Size(double.infinity, 130), // Full-width, larger button
+                textStyle: const TextStyle(fontSize: 20), // Larger text on the button
               ),
               child: const Text('Start Listening'),
             ),
@@ -411,8 +412,8 @@ class TakePictureScreenState extends State<TakePictureScreen> {
               },
               style: ElevatedButton.styleFrom(
                 minimumSize:
-                    Size(double.infinity, 60), // Full-width, larger button
-                textStyle: TextStyle(fontSize: 20), // Larger text on the button
+                    const Size(double.infinity, 130), // Full-width, larger button
+                textStyle: const TextStyle(fontSize: 20), // Larger text on the button
               ),
               child: const Text('Stop Listening'),
             ),
