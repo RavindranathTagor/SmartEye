@@ -64,9 +64,17 @@ class TakePictureScreenState extends State<TakePictureScreen> {
             speak('describe');
             await describeScene();
             break;
+          case 'text':
+            speak('text');
+            await recognizeText();
+            break;
           case 'product':
             speak('product');
             await readBarcode();
+            break;
+          case 'colour':
+            speak('color');
+            await detectColor();
             break;
           default:
             speak('chatbot');
@@ -93,39 +101,57 @@ class TakePictureScreenState extends State<TakePictureScreen> {
     await flutterTts.speak(script);
   }
 
+  // Function to capture an image from the ESP32-S3 camera
+  Future<List<int>> captureImageFromESP32() async {
+    try {
+      final response =
+          await http.get(Uri.parse('http://192.168.122.117/capture'));
 
+      if (response.statusCode == 200) {
+        return response.bodyBytes;
+      } else {
+        speak('Failed to capture image from external camera.');
+        throw Exception('Failed to capture image');
+      }
+    } catch (e) {
+      print('Error capturing image from ESP32: $e');
+      speak('Failed to capture image.');
+      rethrow;
+    }
+  }
 
   Future<String> barcodeLookup(String code) async {
-  final barcodeKey = dotenv.env['barcode'];
-  if (barcodeKey == null) {
-    print('API Key is not set.');
-    return 'API Key is not set.';
-  }
-
-  final Uri apiUri = Uri.parse(
-      'https://api.barcodelookup.com/v3/products?barcode=$code&formatted=y&key=$barcodeKey');
-
-  print('Request URL: $apiUri');  //Debugging line
-
-  var response = await http.get(apiUri, headers: {'Accept': 'application/json'});
-
-  print('Status Code: ${response.statusCode}');
-  print('Headers: ${response.headers}');
-  print('Response body: ${response.body}');  // Debugging line
-
-  if (response.statusCode == 200) {
-    Map<String, dynamic> jsonResponse = json.decode(response.body);
-    print('JSON Response: $jsonResponse');  // Debugging line
-    if (jsonResponse['products'] != null && jsonResponse['products'].isNotEmpty) {
-      return jsonResponse['products'][0]['title'];
-    } else {
-      return 'Product not found';
+    final barcodeKey = dotenv.env['barcode'];
+    if (barcodeKey == null) {
+      print('API Key is not set.');
+      return 'API Key is not set.';
     }
-  } else {
-    return 'Information not found';
-  }
-}
 
+    final Uri apiUri = Uri.parse(
+        'https://api.barcodelookup.com/v3/products?barcode=$code&formatted=y&key=$barcodeKey');
+
+    print('Request URL: $apiUri'); // Debugging line
+
+    var response =
+        await http.get(apiUri, headers: {'Accept': 'application/json'});
+
+    print('Status Code: ${response.statusCode}');
+    print('Headers: ${response.headers}');
+    print('Response body: ${response.body}'); // Debugging line
+
+    if (response.statusCode == 200) {
+      Map<String, dynamic> jsonResponse = json.decode(response.body);
+      print('JSON Response: $jsonResponse'); // Debugging line
+      if (jsonResponse['products'] != null &&
+          jsonResponse['products'].isNotEmpty) {
+        return jsonResponse['products'][0]['description'];
+      } else {
+        return 'Product not found';
+      }
+    } else {
+      return 'Information not found';
+    }
+  }
 
   Future<dynamic> sendClarifaiRequest(
       dynamic content, String workflowId) async {
@@ -148,9 +174,23 @@ class TakePictureScreenState extends State<TakePictureScreen> {
             "data": {
               "text": {
                 "raw": '''<s>
-                  <<SYS>> You are a virtual assistant. Your response must be below 50 words and it should be in kannada language <</SYS>>
+                  <<SYS>> You are a virtual assistant. Your response must be below 50 words <</SYS>>
                   [INST] $content [/INST]'''
               }
+            }
+          }
+        ]
+      };
+    } else if (workflowId == 'describe') {
+      body = {
+        "inputs": [
+          {
+            "data": {
+              "text": {
+                "raw":
+                    "you are assistant of blind person and you guiding a blind person whats there in surrounding, keep it short and detailed, don't use image word"
+              },
+              "image": {"base64": content}
             }
           }
         ]
@@ -187,7 +227,8 @@ class TakePictureScreenState extends State<TakePictureScreen> {
 
   Future<void> describeScene() async {
     try {
-      
+      final imageBytes = await captureImageFromESP32();
+
       final response =
           await sendClarifaiRequest(base64Encode(imageBytes), 'describe');
 
@@ -203,11 +244,40 @@ class TakePictureScreenState extends State<TakePictureScreen> {
     }
   }
 
+  Future<void> recognizeText() async {
+    try {
+      final imageBytes = await captureImageFromESP32();
+      final response = await sendClarifaiRequest(
+          base64Encode(imageBytes), 'text-recognition');
+
+      if (response is Map<String, dynamic> && response.containsKey('regions')) {
+        final results = response['regions'];
+        if (results != null) {
+          String recognizedText = results
+              .map((region) {
+                return region['data']['text']['raw'];
+              })
+              .join(' ')
+              .toLowerCase();
+
+          speak(recognizedText);
+        } else {
+          speak('No text detected.');
+        }
+      } else {
+        speak('Failed to recognize text.');
+      }
+    } catch (e) {
+      print('Error in recognizeText: $e');
+      speak('Failed to recognize text.');
+    }
+  }
 
   Future<void> readBarcode() async {
     try {
-      
-      final response = await sendClarifaiRequest(base64Encode(imageBytes), 'barcode-operator');
+      final imageBytes = await captureImageFromESP32();
+      final response = await sendClarifaiRequest(
+          base64Encode(imageBytes), 'barcode-operator');
 
       if (response is Map<String, dynamic> && response.containsKey('regions')) {
         final results = response['regions'];
@@ -239,6 +309,34 @@ class TakePictureScreenState extends State<TakePictureScreen> {
     }
   }
 
+  Future<void> detectColor() async {
+    try {
+      final imageBytes = await captureImageFromESP32();
+      final response = await sendClarifaiRequest(
+          base64Encode(imageBytes), 'color-recognition');
+
+      if (response is Map<String, dynamic> && response.containsKey('colors')) {
+        final results = response['colors'];
+        if (results != null) {
+          String colors = results
+              .map((color) {
+                return color['w3c']['name'];
+              })
+              .join(', ')
+              .toLowerCase();
+
+          speak(colors);
+        } else {
+          speak('No color detected.');
+        }
+      } else {
+        speak('Failed to detect color.');
+      }
+    } catch (e) {
+      print('Error in detectColor: $e');
+      speak('Failed to detect color.');
+    }
+  }
 
   Future<void> askChatBot(String content) async {
     try {
@@ -260,7 +358,7 @@ class TakePictureScreenState extends State<TakePictureScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Visual Assist'),
+        title: const Text('Vision Assist'),
       ),
       body: Column(
         children: [
@@ -268,39 +366,54 @@ class TakePictureScreenState extends State<TakePictureScreen> {
             child: Center(
               child: Text(
                 'Camera feed will be simulated.',
-                style: TextStyle(fontSize: 18),
+                style: TextStyle(
+                    fontSize: 22), // Larger text for better readability
               ),
             ),
           ),
           if (isBusy)
             Padding(
-              padding: const EdgeInsets.all(8.0),
+              padding: const EdgeInsets.all(12.0),
               child: CircularProgressIndicator(),
             ),
           Padding(
-            padding: const EdgeInsets.all(8.0),
+            padding:
+                const EdgeInsets.symmetric(vertical: 12.0, horizontal: 20.0),
             child: Text(
               display,
-              style: TextStyle(fontSize: 18),
+              style:
+                  TextStyle(fontSize: 22), // Larger text for better readability
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(8.0),
+            padding:
+                const EdgeInsets.symmetric(vertical: 10.0, horizontal: 40.0),
             child: ElevatedButton(
               onPressed: () {
                 if (isBusy) return;
                 _startListening();
               },
+              style: ElevatedButton.styleFrom(
+                minimumSize:
+                    Size(double.infinity, 60), // Full-width, larger button
+                textStyle: TextStyle(fontSize: 20), // Larger text on the button
+              ),
               child: const Text('Start Listening'),
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(8.0),
+            padding:
+                const EdgeInsets.symmetric(vertical: 10.0, horizontal: 40.0),
             child: ElevatedButton(
               onPressed: () {
                 if (isBusy) return;
                 _stopListening();
               },
+              style: ElevatedButton.styleFrom(
+                minimumSize:
+                    Size(double.infinity, 60), // Full-width, larger button
+                textStyle: TextStyle(fontSize: 20), // Larger text on the button
+              ),
               child: const Text('Stop Listening'),
             ),
           ),
